@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>School Hub</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --text: #f8fafc;
+    --muted: #94a3b8;
+    --accent: #8b5cf6;
+    --accent-2: #ec4899;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ---------- top bar ---------- */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    background: var(--panel);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    flex-shrink: 0;
+  }
+  .logo {
+    font-weight: 800;
+    font-size: 1.25rem;
+    letter-spacing: .02em;
+    background: linear-gradient(135deg, #6366f1, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    white-space: nowrap;
+  }
+  .spacer { flex: 1; }
+  #search {
+    width: min(320px, 50vw);
+    padding: 10px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 1rem;
+    outline: none;
+  }
+  #search:focus { border-color: var(--accent); }
+  #search::placeholder { color: var(--muted); }
+
+  button.btn {
+    padding: 9px 14px;
+    border: none;
+    border-radius: 10px;
+    background: var(--panel-2);
+    color: var(--text);
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s ease;
+  }
+  button.btn:hover { background: #33425c; }
+  button.btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* ---------- library view ---------- */
+  #library { flex: 1; overflow-y: auto; padding: 24px 20px 40px; }
+  .section-title { font-size: 1.05rem; color: var(--muted); margin-bottom: 16px; font-weight: 600; }
+
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--panel);
+    border: none;
+    border-radius: 14px;
+    overflow: hidden;
+    cursor: pointer;
+    color: inherit;
+    text-align: left;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: 0 10px 24px rgba(0,0,0,.35); }
+  .card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .thumb {
+    aspect-ratio: 4 / 3;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 3rem;
+    font-weight: 800;
+    color: rgba(255,255,255,.9);
+    background: linear-gradient(135deg, #6366f1, var(--accent), var(--accent-2));
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card .name { padding: 12px 14px; font-weight: 600; font-size: .95rem; }
+
+  /* ---------- empty state ---------- */
+  #empty {
+    display: none;
+    max-width: 520px;
+    margin: 12vh auto 0;
+    text-align: center;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+  #empty .big { font-size: 3rem; margin-bottom: 12px; }
+  #empty h2 { color: var(--text); font-size: 1.4rem; margin-bottom: 8px; }
+  #empty code {
+    background: var(--panel);
+    padding: 2px 7px;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: .9em;
+  }
+
+  /* ---------- player view ---------- */
+  #player { display: none; flex: 1; flex-direction: column; min-height: 0; }
+  #player .bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+  #player .title { font-weight: 700; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #frame { flex: 1; width: 100%; border: none; background: #000; min-height: 0; }
+
+  body.playing #library, body.playing header { display: none; }
+  body.playing #player { display: flex; }
+
+
+  /* ---------- upload ---------- */
+  button.btn.primary { background: linear-gradient(135deg, #6366f1, var(--accent), var(--accent-2)); }
+  button.btn.primary:hover { filter: brightness(1.1); background: linear-gradient(135deg, #6366f1, var(--accent), var(--accent-2)); }
+  .wrap { position: relative; display: flex; }
+  .wrap .card { height: 100%; }
+  .badge {
+    position: absolute; top: 8px; left: 8px;
+    background: rgba(15,23,42,.8); color: #fff; font-size: .7rem; font-weight: 700;
+    padding: 3px 8px; border-radius: 999px; pointer-events: none;
+  }
+  .del {
+    position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 50%;
+    border: none; background: rgba(15,23,42,.85); color: #fff; font-size: 1rem; cursor: pointer; line-height: 1;
+  }
+  .del:hover { background: #dc2626; }
+  #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); align-items: center; justify-content: center; padding: 16px; z-index: 10; }
+  #modal.open { display: flex; }
+  .dialog { background: var(--panel); border-radius: 16px; padding: 22px; width: min(460px, 100%); max-height: 90vh; overflow-y: auto; }
+  .dialog h2 { font-size: 1.2rem; margin-bottom: 14px; }
+  .dialog label { display: block; color: var(--muted); font-size: .85rem; margin: 12px 0 6px; }
+  .dialog input[type=text] { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid rgba(255,255,255,.1); background: var(--bg); color: var(--text); font-size: 1rem; outline: none; }
+  .dialog input[type=text]:focus { border-color: var(--accent); }
+  .pickrow { display: flex; gap: 8px; flex-wrap: wrap; }
+  .hint { color: var(--muted); font-size: .8rem; margin-top: 10px; line-height: 1.5; }
+  #picked { margin-top: 10px; font-size: .9rem; color: var(--text); word-break: break-all; }
+  #status { margin-top: 10px; font-size: .9rem; min-height: 1.2em; }
+  #status.err { color: #fca5a5; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+
+  @media (max-width: 520px) {
+    header { padding: 12px 14px; }
+    .logo { font-size: 1.05rem; }
+    #grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">School Hub</div>
+  <div class="spacer"></div>
+  <input id="search" type="search" placeholder="Search games…" autocomplete="off" aria-label="Search games">
+  <button class="btn primary" id="openUpload" type="button">+ Upload</button>
+</header>
+
+<main id="library">
+  <div id="listing">
+    <div class="section-title" id="count">All games</div>
+    <div id="grid"></div>
+  </div>
+
+  <div id="empty">
+    <div class="big">🎮</div>
+    <h2>No games yet</h2>
+    <p>Press <b>+ Upload</b> to add a game (an HTML file, a .zip, or a folder). It will show up here.</p>
+  </div>
+</main>
+
+<section id="player" aria-label="Game player">
+  <div class="bar">
+    <button class="btn" id="back" type="button">← Back</button>
+    <div class="title" id="gameTitle"></div>
+    <button class="btn" id="reload" type="button">Reload</button>
+    <button class="btn" id="full" type="button">Fullscreen</button>
+  </div>
+  <iframe id="frame" title="Game" allow="fullscreen; autoplay; gamepad" allowfullscreen></iframe>
+</section>
+
+
+<div id="modal" role="dialog" aria-modal="true" aria-label="Upload a game">
+  <div class="dialog">
+    <h2>Upload a game</h2>
+    <label for="upTitle">Game name</label>
+    <input id="upTitle" type="text" placeholder="My game" autocomplete="off">
+    <label>Game files</label>
+    <div class="pickrow">
+      <button class="btn" id="pickFiles" type="button">Choose HTML / ZIP</button>
+      <button class="btn" id="pickFolder" type="button">Choose folder</button>
+    </div>
+    <input id="fileInput" type="file" accept=".html,.htm,.zip" multiple hidden>
+    <input id="folderInput" type="file" webkitdirectory hidden>
+    <div id="picked"></div>
+    <p class="hint">Works with a single .html file, a .zip of the game, or the game's folder (it needs an <code>index.html</code>). Uploaded games are saved in this browser only, on this device.</p>
+    <div id="status"></div>
+    <div class="actions">
+      <button class="btn" id="upCancel" type="button">Cancel</button>
+      <button class="btn primary" id="upSave" type="button" disabled>Add game</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  var builtIn = [];   // games shipped in games.json
+  var uploads = [];   // games uploaded in this browser
+  var grid = document.getElementById("grid");
+  var listing = document.getElementById("listing");
+  var empty = document.getElementById("empty");
+  var countEl = document.getElementById("count");
+  var search = document.getElementById("search");
+  var frame = document.getElementById("frame");
+
+  /* ---------- storage (IndexedDB) ---------- */
+  var MIME = {html:"text/html",htm:"text/html",js:"text/javascript",mjs:"text/javascript",css:"text/css",json:"application/json",png:"image/png",jpg:"image/jpeg",jpeg:"image/jpeg",gif:"image/gif",svg:"image/svg+xml",webp:"image/webp",ico:"image/x-icon",mp3:"audio/mpeg",ogg:"audio/ogg",wav:"audio/wav",m4a:"audio/mp4",mp4:"video/mp4",webm:"video/webm",wasm:"application/wasm",woff:"font/woff",woff2:"font/woff2",ttf:"font/ttf",otf:"font/otf",txt:"text/plain",xml:"application/xml"};
+  function extOf(n) { var m = /\.([^.\/]+)$/.exec(n); return m ? m[1].toLowerCase() : ""; }
+
+  function openDB() {
+    return new Promise(function (res, rej) {
+      var r = indexedDB.open("schoolhub", 1);
+      r.onupgradeneeded = function () {
+        var d = r.result;
+        if (!d.objectStoreNames.contains("games")) d.createObjectStore("games", { keyPath: "id" });
+        if (!d.objectStoreNames.contains("files")) d.createObjectStore("files");
+      };
+      r.onsuccess = function () { res(r.result); };
+      r.onerror = function () { rej(r.error); };
+    });
+  }
+  function done(t) {
+    return new Promise(function (res, rej) {
+      t.oncomplete = function () { res(); };
+      t.onerror = function () { rej(t.error); };
+      t.onabort = function () { rej(t.error || new Error("Storage full or blocked")); };
+    });
+  }
+  function loadUploads() {
+    return openDB().then(function (db) {
+      return new Promise(function (res, rej) {
+        var q = db.transaction("games").objectStore("games").getAll();
+        q.onsuccess = function () { res(q.result || []); };
+        q.onerror = function () { rej(q.error); };
+      });
+    }).catch(function () { return []; });
+  }
+  function saveUpload(meta, files) {
+    return openDB().then(function (db) {
+      var t = db.transaction(["games", "files"], "readwrite");
+      t.objectStore("games").put(meta);
+      files.forEach(function (f) { t.objectStore("files").put(f.blob, meta.id + "/" + f.path); });
+      return done(t);
+    });
+  }
+  function deleteUpload(id) {
+    return openDB().then(function (db) {
+      var t = db.transaction(["games", "files"], "readwrite");
+      t.objectStore("games").delete(id);
+      t.objectStore("files").delete(IDBKeyRange.bound(id + "/", id + "0"));
+      return done(t);
+    });
+  }
+
+  /* ---------- rendering ---------- */
+  function initial(t) { return (t || "?").trim().charAt(0).toUpperCase(); }
+  function all() {
+    return builtIn.concat(uploads).sort(function (a, b) { return a.title.localeCompare(b.title); });
+  }
+
+  function render(list) {
+    grid.innerHTML = "";
+    list.forEach(function (g) {
+      var wrap = document.createElement("div");
+      wrap.className = "wrap";
+
+      var card = document.createElement("button");
+      card.className = "card";
+      card.type = "button";
+      card.style.width = "100%";
+
+      var thumb = document.createElement("div");
+      thumb.className = "thumb";
+      if (g.thumb) {
+        var img = document.createElement("img");
+        img.alt = ""; img.loading = "lazy"; img.src = g.thumb;
+        img.onerror = function () { thumb.removeChild(img); thumb.textContent = initial(g.title); };
+        thumb.appendChild(img);
+      } else {
+        thumb.textContent = initial(g.title);
+      }
+      var name = document.createElement("div");
+      name.className = "name";
+      name.textContent = g.title;
+      card.appendChild(thumb);
+      card.appendChild(name);
+      card.addEventListener("click", function () { play(g); });
+      wrap.appendChild(card);
+
+      if (g.user) {
+        var badge = document.createElement("div");
+        badge.className = "badge";
+        badge.textContent = "Yours";
+        wrap.appendChild(badge);
+
+        var del = document.createElement("button");
+        del.className = "del";
+        del.type = "button";
+        del.title = "Delete";
+        del.setAttribute("aria-label", "Delete " + g.title);
+        del.textContent = "×";
+        del.addEventListener("click", function (e) {
+          e.stopPropagation();
+          if (!confirm('Delete "' + g.title + '"?')) return;
+          deleteUpload(g.id).then(refresh);
+        });
+        wrap.appendChild(del);
+      }
+      grid.appendChild(wrap);
+    });
+    var total = all().length;
+    countEl.textContent = list.length === total ? "All games (" + total + ")" : list.length + " of " + total + " games";
+  }
+
+  function refresh() {
+    return loadUploads().then(function (u) {
+      uploads = u.map(function (x) { x.user = true; return x; });
+      var total = all().length;
+      listing.style.display = total ? "" : "none";
+      empty.style.display = total ? "none" : "block";
+      search.style.display = total ? "" : "none";
+      if (total) render(filtered());
+    });
+  }
+  function filtered() {
+    var q = search.value.trim().toLowerCase();
+    return all().filter(function (g) { return g.title.toLowerCase().indexOf(q) !== -1; });
+  }
+
+  /* ---------- playing ---------- */
+  function play(g) {
+    function go(src) {
+      document.getElementById("gameTitle").textContent = g.title;
+      frame.src = src;
+      document.body.classList.add("playing");
+    }
+    if (!g.user) return go(g.path);
+    if (!("serviceWorker" in navigator)) { alert("This browser can't run uploaded games."); return; }
+    navigator.serviceWorker.ready.then(function () {
+      go("_user/" + g.id + "/" + g.entry.split("/").map(encodeURIComponent).join("/"));
+    });
+  }
+  function stop() { frame.src = "about:blank"; document.body.classList.remove("playing"); }
+
+  document.getElementById("back").addEventListener("click", stop);
+  document.getElementById("reload").addEventListener("click", function () {
+    var src = frame.src; frame.src = "about:blank"; setTimeout(function () { frame.src = src; }, 50);
+  });
+  document.getElementById("full").addEventListener("click", function () {
+    if (frame.requestFullscreen) frame.requestFullscreen();
+    else if (frame.webkitRequestFullscreen) frame.webkitRequestFullscreen();
+  });
+  search.addEventListener("input", function () { render(filtered()); });
+
+  /* ---------- upload dialog ---------- */
+  var modal = document.getElementById("modal");
+  var upTitle = document.getElementById("upTitle");
+  var fileInput = document.getElementById("fileInput");
+  var folderInput = document.getElementById("folderInput");
+  var pickedEl = document.getElementById("picked");
+  var statusEl = document.getElementById("status");
+  var saveBtn = document.getElementById("upSave");
+  var chosen = null; // { files: [{path, blob}], entry }
+
+  function setStatus(msg, isErr) { statusEl.textContent = msg || ""; statusEl.className = isErr ? "err" : ""; }
+  function resetDialog() {
+    chosen = null; upTitle.value = ""; pickedEl.textContent = ""; setStatus("");
+    fileInput.value = ""; folderInput.value = ""; saveBtn.disabled = true;
+  }
+  function closeDialog() { modal.classList.remove("open"); }
+
+  document.getElementById("openUpload").addEventListener("click", function () { resetDialog(); modal.classList.add("open"); upTitle.focus(); });
+  document.getElementById("upCancel").addEventListener("click", closeDialog);
+  modal.addEventListener("click", function (e) { if (e.target === modal) closeDialog(); });
+  document.getElementById("pickFiles").addEventListener("click", function () { fileInput.click(); });
+  document.getElementById("pickFolder").addEventListener("click", function () { folderInput.click(); });
+  fileInput.addEventListener("change", function () { handlePick(Array.from(fileInput.files), false); });
+  folderInput.addEventListener("change", function () { handlePick(Array.from(folderInput.files), true); });
+
+  function loadZipLib() {
+    if (window.JSZip) return Promise.resolve();
+    return new Promise(function (res, rej) {
+      var sc = document.createElement("script");
+      sc.src = "vendor/jszip.min.js";
+      sc.onload = res; sc.onerror = function () { rej(new Error("Could not load the zip reader")); };
+      document.head.appendChild(sc);
+    });
+  }
+
+  function typed(blob, path) {
+    var t = MIME[extOf(path)];
+    return t && blob.type !== t ? new Blob([blob], { type: t }) : blob;
+  }
+
+  function collect(picked, isFolder) {
+    // -> Promise<[{path, blob}]>
+    var zips = picked.filter(function (f) { return extOf(f.name) === "zip"; });
+    if (zips.length) {
+      return loadZipLib().then(function () { return JSZip.loadAsync(zips[0]); }).then(function (zip) {
+        var jobs = [];
+        zip.forEach(function (path, entry) {
+          if (entry.dir || /(^|\/)(__MACOSX|\.DS_Store)/.test(path)) return;
+          jobs.push(entry.async("blob").then(function (b) { return { path: path, blob: typed(b, path) }; }));
+        });
+        return Promise.all(jobs);
+      });
+    }
+    return Promise.resolve(picked.map(function (f) {
+      var path = isFolder && f.webkitRelativePath ? f.webkitRelativePath : f.name;
+      return { path: path, blob: typed(f, path) };
+    }));
+  }
+
+  function normalize(files) {
+    // drop a single shared top-level folder
+    if (files.length && files.every(function (f) { return f.path.indexOf("/") > 0; })) {
+      var first = files[0].path.split("/")[0];
+      if (files.every(function (f) { return f.path.split("/")[0] === first; })) {
+        files.forEach(function (f) { f.path = f.path.slice(first.length + 1); });
+      }
+    }
+    return files;
+  }
+
+  function findEntry(files) {
+    var htmls = files.filter(function (f) { return /\.html?$/i.test(f.path); });
+    if (!htmls.length) return null;
+    var idx = htmls.filter(function (f) { return f.path.toLowerCase() === "index.html"; })[0];
+    if (idx) return idx.path;
+    htmls.sort(function (a, b) { return a.path.split("/").length - b.path.split("/").length; });
+    return htmls[0].path;
+  }
+
+  function handlePick(picked, isFolder) {
+    if (!picked.length) return;
+    setStatus("Reading files…");
+    saveBtn.disabled = true; chosen = null;
+    collect(picked, isFolder).then(function (files) {
+      files = normalize(files);
+      var entry = findEntry(files);
+      if (!entry) throw new Error("No .html file found in that upload.");
+      var bytes = files.reduce(function (n, f) { return n + f.blob.size; }, 0);
+      chosen = { files: files, entry: entry };
+      pickedEl.textContent = files.length + " file" + (files.length === 1 ? "" : "s") + " · " + (bytes / 1048576).toFixed(1) + " MB · starts at " + entry;
+      if (!upTitle.value.trim()) {
+        var base = (picked[0].name || "Game").replace(/\.(zip|html?)$/i, "");
+        if (isFolder && picked[0].webkitRelativePath) base = picked[0].webkitRelativePath.split("/")[0];
+        upTitle.value = base;
+      }
+      setStatus("Ready to add.");
+      saveBtn.disabled = false;
+    }).catch(function (err) { setStatus(err.message || String(err), true); });
+  }
+
+  saveBtn.addEventListener("click", function () {
+    if (!chosen) return;
+    var title = upTitle.value.trim() || "Untitled game";
+    var id = "u" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    saveBtn.disabled = true; setStatus("Saving…");
+    saveUpload({ id: id, title: title, entry: chosen.entry, added: Date.now() }, chosen.files)
+      .then(function () { closeDialog(); return refresh(); })
+      .catch(function (err) {
+        deleteUpload(id).catch(function () {});
+        setStatus("Could not save: " + (err && err.message || "storage may be full or blocked"), true);
+        saveBtn.disabled = false;
+      });
+  });
+
+  /* ---------- startup ---------- */
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(function () {});
+
+  fetch("https://api.github.com/repos/CoolDude2349/Offline-HTML-Games-Pack/contents/offline")
+.then(r=>r.json()).then(files=>{builtIn=(files||[]).filter(f=>f.type==="dir").map(f=>({title:f.name,thumb:"",url:"https://cooldude2349.github.io/Offline-HTML-Games-Pack/offline/"+encodeURIComponent(f.name)+"/index.html"}));return refresh();}).catch(()=>fetch("games.json").then(r=>r.json()).then(d=>{builtIn=d;return refresh();}));
+</script>
+</body>
+</html>
